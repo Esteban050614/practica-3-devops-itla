@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tareas DevOps — ITLA</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    h1 { color: #1f3b63; } li.hecha { text-decoration: line-through; color: #777; }
+    form { display: flex; gap: 8px; } input { flex: 1; padding: 8px; } button { padding: 8px 14px; }
+
+    li {
+    margin-bottom: 12px;
+}
+
+li button {
+    margin-left: 15px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+li span {
+    cursor: pointer;
+}
+ul {
+    padding-left: 20px;
+}
+
+li {
+    margin-bottom: 12px;
+    padding: 4px 0;
+}
+
+li span {
+    cursor: pointer;
+}
+
+.acciones {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+#contador {
+    color: #666;
+    font-size: 14px;
+}
+
+#limpiar {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 14px;
+    cursor: pointer;
+}
+
+#limpiar:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+}
+  </style>
+</head>
+<body>
+  <h1>Lista de tareas</h1>
+  <p id="aviso">Versión estática (GitHub Pages). Ejecuta <code>npm start</code> para usar la API.</p>
+  <form id="f"><input id="t" placeholder="Nueva tarea" required><button>Agregar</button></form>
+  <ul id="l"></ul>
+  <div class="acciones">
+    <span id="contador">0 tareas completadas</span>
+    <button id="limpiar" type="button" disabled>
+        Eliminar completadas
+    </button>
+</div>
+  <script>
+    const l = document.getElementById('l');
+    const botonLimpiar = document.getElementById('limpiar');
+    const contador = document.getElementById('contador');
+
+    async function cargar() {
+        try {
+            const r = await fetch('/api/tareas/');
+
+            if (!r.ok) throw new Error('Error al cargar tareas');
+
+            const tareas = await r.json();
+
+            l.innerHTML = '';
+
+            const completadas = tareas.filter(t => t.completada);
+
+            contador.textContent =
+                `${completadas.length} tareas completadas`;
+
+            botonLimpiar.disabled = completadas.length === 0;
+
+            tareas.forEach(t => {
+                const li = document.createElement('li');
+
+                const texto = document.createElement('span');
+                texto.textContent = t.titulo;
+
+                if (t.completada) {
+                    li.className = 'hecha';
+                }
+
+                texto.onclick = async () => {
+                    await fetch('/api/tareas/' + t.id, {
+                        method: 'PATCH'
+                    });
+
+                    cargar();
+                };
+
+                li.appendChild(texto);
+                l.appendChild(li);
+            });
+
+        } catch (e) {
+            console.error('Error al cargar las tareas:', e);
+        }
+    }
+
+    document.getElementById('f').onsubmit = async e => {
+        e.preventDefault();
+
+        const titulo = document.getElementById('t').value.trim();
+
+        if (!titulo) return;
+
+        const r = await fetch('/api/tareas/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ titulo })
+        });
+
+        if (!r.ok) {
+            alert('No se pudo agregar la tarea');
+            return;
+        }
+
+        document.getElementById('t').value = '';
+        cargar();
+    };
+
+    botonLimpiar.onclick = async () => {
+        const r = await fetch('/api/tareas/');
+
+        if (!r.ok) {
+            alert('No se pudieron consultar las tareas');
+            return;
+        }
+
+        const tareas = await r.json();
+        const completadas = tareas.filter(t => t.completada);
+
+        if (completadas.length === 0) return;
+
+        const confirmar = confirm(
+            `¿Deseas eliminar las ${completadas.length} tareas completadas?`
+        );
+
+        if (!confirmar) return;
+
+        const resultados = await Promise.all(
+            completadas.map(t =>
+                fetch('/api/tareas/' + t.id, {
+                    method: 'DELETE'
+                })
+            )
+        );
+
+        if (resultados.some(r => !r.ok)) {
+            alert('Algunas tareas no pudieron eliminarse');
+        }
+
+        cargar();
+    };
+
+    cargar();
+</script>
+</body>
+</html>
