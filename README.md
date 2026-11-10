@@ -54,6 +54,18 @@ Se agregó `DELETE /api/tareas/:id`. Cuando el identificador existe, elimina la 
 
 Las pruebas nuevas comprueban el rechazo de títulos demasiado largos, la eliminación correcta de una tarea y la respuesta `404` al intentar eliminar una tarea inexistente. Jest ejecuta estas pruebas junto con las originales y genera el reporte de cobertura.
 
+
+### Funcionamiento del frontend en GitHub Pages
+
+El frontend cuenta con dos modos de funcionamiento. Cuando se ejecuta la aplicación localmente y está disponible el servidor Express, utiliza la API para administrar las tareas.
+
+Cuando se publica en GitHub Pages, utiliza `localStorage` para guardar las tareas directamente en el navegador, sin necesidad de tener un servidor Node.js funcionando.
+
+En este segundo modo se pueden agregar tareas, marcarlas como completadas y eliminar todas las tareas completadas. La información permanece guardada en el navegador aunque se cierre la página.
+
+Es importante aclarar que las tareas almacenadas en GitHub Pages son independientes de las que se guardan mediante la API local.
+
+
 ### ¿Cómo funciona el pipeline CI/CD?
 
 El workflow está definido en `.github/workflows/ci.yml` y se activa automáticamente cuando se realiza un `push` a la rama `main` o se abre/actualiza un `pull request` dirigido a `main`.
@@ -61,7 +73,7 @@ El workflow está definido en `.github/workflows/ci.yml` y se activa automática
 1. **Checkout:** GitHub Actions descarga el contenido del repositorio para trabajar con el código.
 2. **Preparación de Node.js:** configura Node.js 20 en el entorno de ejecución.
 3. **Instalación:** `npm install` instala Express y las dependencias de desarrollo necesarias.
-4. **Revisión estática (lint):** `npm run lint` comprueba la sintaxis de los archivos principales de la aplicación.
+4. **Revisión estática (lint):** `npm run lint` utiliza `node --check` para comprobar que los archivos principales de la aplicación no tengan errores de sintaxis.
 5. **Pruebas automatizadas:** `npm test` ejecuta Jest y Supertest, y genera el reporte de cobertura. Si una prueba falla, el trabajo se detiene y el pipeline queda marcado como fallido.
 6. **Construcción Docker:** `docker build` comprueba que la aplicación pueda empaquetarse en una imagen.
 7. **Despliegue:** únicamente después de que el trabajo de build y pruebas termine correctamente, y cuando el evento sea un `push` a `main`, se publica la carpeta `public` en GitHub Pages.
