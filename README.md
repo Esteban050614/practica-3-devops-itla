@@ -36,17 +36,19 @@ docker run -p 3000:3000 tareas-devops
    git add .
    git commit -m "Plantilla inicial"
    git branch -M main
-   git remote add origin https://github.com/TU_USUARIO/TU_REPO.git
+   git remote add origin https://github.com/Esteban050614/practica-3-devops-itla.git
    git push -u origin main
    ```
 3. En GitHub: **Settings → Pages → Source: GitHub Actions**.
 4. Abre la pestaña **Actions**: verás el workflow *CI/CD* ejecutándose. Cuando termine, la URL de tu página aparece en el job *Despliegue a GitHub Pages*.
 
-## Práctica 3 — qué debes agregar
-- Al menos **2 pruebas nuevas** (por ejemplo: borrar tareas, validar títulos largos).
-- Una funcionalidad nueva pequeña con su prueba (`DELETE /api/tareas/:id`).
-- Provocar a propósito una prueba fallida, mostrar que el pipeline se pone en **rojo**, corregirla y mostrarlo en **verde**.
-- Completar este README con la explicación de cada etapa del pipeline.
+## Práctica 3 — Requisitos completados
+
+- Se agregaron pruebas automatizadas para validar los títulos y la eliminación de tareas.
+- Se implementó la funcionalidad DELETE /api/tareas/:id.
+- Se provocó intencionalmente un fallo en una prueba para comprobar que GitHub Actions detectara el error.
+- Se corrigió la prueba y se verificó que el pipeline volviera a ejecutarse correctamente.
+- Se documentaron las etapas del pipeline CI/CD en este README.
 
 ### Funcionalidad y pruebas agregadas
 
