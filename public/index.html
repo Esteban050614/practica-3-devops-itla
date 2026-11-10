@@ -75,18 +75,59 @@ li span {
         Eliminar completadas
     </button>
 </div>
-  <script>
+  
+<script>
     const l = document.getElementById('l');
     const botonLimpiar = document.getElementById('limpiar');
     const contador = document.getElementById('contador');
+    const aviso = document.getElementById('aviso');
 
-    async function cargar() {
+    const CLAVE = 'tareas-devops-itla';
+
+    let usarAPI = false;
+    let tareasLocales = [];
+
+    // Detectar si existe el servidor Express
+    async function detectarModo() {
         try {
-            const r = await fetch('/api/tareas/');
+            const respuesta = await fetch('/api/tareas/');
 
-            if (!r.ok) throw new Error('Error al cargar tareas');
+            if (!respuesta.ok) throw new Error('API no disponible');
 
-            const tareas = await r.json();
+            usarAPI = true;
+            if (aviso) aviso.textContent = 'Conectado al servidor Express.';
+
+        } catch (error) {
+            usarAPI = false;
+            tareasLocales = JSON.parse(localStorage.getItem(CLAVE)) || [];
+
+            if (aviso) {
+                aviso.textContent = 'Modo GitHub Pages: tus tareas se guardan en este navegador.';
+            }
+        }
+
+        cargar();
+    }
+
+    // Guardar las tareas en el navegador
+    function guardarLocales() {
+        localStorage.setItem(CLAVE, JSON.stringify(tareasLocales));
+    }
+
+    // Mostrar las tareas
+    async function cargar() {
+        let tareas = [];
+
+        try {
+            if (usarAPI) {
+                const respuesta = await fetch('/api/tareas/');
+
+                if (!respuesta.ok) throw new Error('Error de API');
+
+                tareas = await respuesta.json();
+            } else {
+                tareas = tareasLocales;
+            }
 
             l.innerHTML = '';
 
@@ -99,8 +140,8 @@ li span {
 
             tareas.forEach(t => {
                 const li = document.createElement('li');
-
                 const texto = document.createElement('span');
+
                 texto.textContent = t.titulo;
 
                 if (t.completada) {
@@ -108,9 +149,19 @@ li span {
                 }
 
                 texto.onclick = async () => {
-                    await fetch('/api/tareas/' + t.id, {
-                        method: 'PATCH'
-                    });
+                    if (usarAPI) {
+                        await fetch('/api/tareas/' + t.id, {
+                            method: 'PATCH'
+                        });
+                    } else {
+                        tareasLocales = tareasLocales.map(item =>
+                            item.id === t.id
+                                ? { ...item, completada: !item.completada }
+                                : item
+                        );
+
+                        guardarLocales();
+                    }
 
                     cargar();
                 };
@@ -119,44 +170,61 @@ li span {
                 l.appendChild(li);
             });
 
-        } catch (e) {
-            console.error('Error al cargar las tareas:', e);
+        } catch (error) {
+            console.error('Error al cargar tareas:', error);
+            alert('No se pudieron cargar las tareas.');
         }
     }
 
+    // Agregar una tarea
     document.getElementById('f').onsubmit = async e => {
         e.preventDefault();
 
-        const titulo = document.getElementById('t').value.trim();
+        const input = document.getElementById('t');
+        const titulo = input.value.trim();
 
         if (!titulo) return;
 
-        const r = await fetch('/api/tareas/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ titulo })
-        });
-
-        if (!r.ok) {
-            alert('No se pudo agregar la tarea');
+        if (titulo.length > 100) {
+            alert('El título no puede superar los 100 caracteres.');
             return;
         }
 
-        document.getElementById('t').value = '';
-        cargar();
+        try {
+            if (usarAPI) {
+                const respuesta = await fetch('/api/tareas/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ titulo })
+                });
+
+                if (!respuesta.ok) throw new Error('No se pudo agregar');
+            } else {
+                tareasLocales.push({
+                    id: Date.now(),
+                    titulo,
+                    completada: false
+                });
+
+                guardarLocales();
+            }
+
+            input.value = '';
+            cargar();
+
+        } catch (error) {
+            alert('No se pudo agregar la tarea.');
+        }
     };
 
+    // Eliminar todas las tareas completadas
     botonLimpiar.onclick = async () => {
-        const r = await fetch('/api/tareas/');
+        let tareas = usarAPI
+            ? await (await fetch('/api/tareas/')).json()
+            : tareasLocales;
 
-        if (!r.ok) {
-            alert('No se pudieron consultar las tareas');
-            return;
-        }
-
-        const tareas = await r.json();
         const completadas = tareas.filter(t => t.completada);
 
         if (completadas.length === 0) return;
@@ -167,22 +235,34 @@ li span {
 
         if (!confirmar) return;
 
-        const resultados = await Promise.all(
-            completadas.map(t =>
-                fetch('/api/tareas/' + t.id, {
-                    method: 'DELETE'
-                })
-            )
-        );
+        try {
+            if (usarAPI) {
+                const resultados = await Promise.all(
+                    completadas.map(t =>
+                        fetch('/api/tareas/' + t.id, {
+                            method: 'DELETE'
+                        })
+                    )
+                );
 
-        if (resultados.some(r => !r.ok)) {
-            alert('Algunas tareas no pudieron eliminarse');
+                if (resultados.some(r => !r.ok)) {
+                    throw new Error('No se pudieron eliminar todas las tareas');
+                }
+            } else {
+                tareasLocales = tareasLocales.filter(t => !t.completada);
+                guardarLocales();
+            }
+
+            cargar();
+
+        } catch (error) {
+            alert('Ocurrió un error al eliminar las tareas.');
         }
-
-        cargar();
     };
 
-    cargar();
+    // Iniciar aplicación
+    detectarModo();
 </script>
+
 </body>
 </html>
